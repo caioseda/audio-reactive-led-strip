@@ -17,15 +17,12 @@ _fps = dsp.ExpFilter(val=config.FPS, alpha_decay=0.2, alpha_rise=0.2)
 
 def frames_per_second():
     """Return the estimated frames per second
-
     Returns the current estimate for frames-per-second (FPS).
     FPS is estimated by measured the amount of time that has elapsed since
     this function was previously called. The FPS estimate is low-pass filtered
     to reduce noise.
-
     This function is intended to be called one time for every iteration of
     the program's main loop.
-
     Returns
     -------
     fps : float
@@ -64,15 +61,12 @@ def _normalized_linspace(size):
 
 def interpolate(y, new_length):
     """Intelligently resizes the array by linearly interpolating the values
-
     Parameters
     ----------
     y : np.array
         Array that should be resized
-
     new_length : int
         The length of the new interpolated array
-
     Returns
     -------
     z : np.array
@@ -250,7 +244,6 @@ y_roll = np.random.rand(config.N_ROLLING_HISTORY, samples_per_frame) / 1e16
 
 visualization_effect = visualize_spectrum
 """Visualization effect to display on the LED strip"""
-
 
 if __name__ == '__main__':
     if config.USE_GUI:

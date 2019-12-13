@@ -31,6 +31,12 @@ elif config.DEVICE == 'blinkstick':
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
+elif config.DEVICE== 'launchpad':
+    import launchpad_py as lp 
+    lp = lp.LaunchpadMk2()
+    lp.Open(0,"Mk2")
+    lp.LedAllOn(0)
+
 _gamma = np.load(config.GAMMA_TABLE_PATH)
 """Gamma lookup table used for nonlinear brightness correction"""
 
@@ -41,6 +47,64 @@ pixels = np.tile(1, (3, config.N_PIXELS))
 """Pixel values for the LED strip"""
 
 _is_python_2 = int(platform.python_version_tuple()[0]) == 2
+
+def _update_launchpad():
+
+    global pixels, _prev_pixels
+    # Truncate values and cast to integer
+    pixels = np.clip(pixels, 0, 126).astype(int)
+    # Optionally apply gamma correc tio
+    p = _gamma[pixels] if config.SOFTWARE_GAMMA_CORRECTION else np.copy(pixels)
+
+    # print(len(p))
+    """
+    rgb = np.bitwise_or(np.bitwise_or(r, g), b)
+    # Update the pixels
+    for i in range(config.N_PIXELS):
+        # Ignore pixels if they haven't changed (saves bandwidth)
+        if np.array_equal(p[:, i], _prev_pixels[:, i]):
+            continue
+        strip._led_data[i] = rgb[i]
+    """
+    r = p[0][:].astype(int)
+    g = p[1][:].astype(int)
+    b = p[2][:].astype(int)
+
+    # pixel_array = np.repeat(0,64)
+
+    
+    # for column in range(0,8):
+    #     lp.LedCtrlXY(column,1,r[column],g[column],b[column])
+    #     lp.LedCtrlXY(column,2,r[column],g[column],b[column])
+    #     lp.LedCtrlXY(column,3,r[column],g[column],b[column])
+    #     lp.LedCtrlXY(column,4,r[column],g[column],b[column])
+    print([r[0],g[0],b[0]])
+
+    lp.LedCtrlXY( 0, 1, r[0], g[0], b[0])
+    lp.LedCtrlXY( 1, 2, r[1], g[1], b[1])
+    lp.LedCtrlXY( 2, 3, r[2], g[2], b[2])
+    lp.LedCtrlXY( 3, 4, r[3], g[3], b[3])
+    lp.LedCtrlXY( 4, 5, r[4], g[4], b[4])
+    lp.LedCtrlXY( 5, 6, r[5], g[5], b[5])
+    lp.LedCtrlXY( 6, 7, r[6], g[6], b[6])
+    lp.LedCtrlXY( 7, 8, r[7], g[7], b[7])
+
+    lp.LedCtrlXY( 7, 1, r[0], g[0], b[0])
+    lp.LedCtrlXY( 6, 2, r[1], g[1], b[1])
+    lp.LedCtrlXY( 5, 3, r[2], g[2], b[2])
+    lp.LedCtrlXY( 4, 4, r[3], g[3], b[3])
+    lp.LedCtrlXY( 3, 5, r[4], g[4], b[4])
+    lp.LedCtrlXY( 2, 6, r[5], g[5], b[5])
+    lp.LedCtrlXY( 1, 7, r[6], g[6], b[6])
+    lp.LedCtrlXY( 0, 8, r[7], g[7], b[7])
+    
+    """
+    for i in range(config.N_PIXELS):
+        # blinkstick uses GRB format
+        newstrip[i*3] = g[i]
+        newstrip[i*3+1] = r[i]
+        newstrip[i*3+2] = b[i]
+    """
 
 def _update_esp8266():
     """Sends UDP packets to ESP8266 to update LED strip values
@@ -125,12 +189,13 @@ def _update_blinkstick():
 
     #create array in which we will store the led states
     newstrip = [None]*(config.N_PIXELS*3)
-
+    """
     for i in range(config.N_PIXELS):
         # blinkstick uses GRB format
         newstrip[i*3] = g[i]
         newstrip[i*3+1] = r[i]
         newstrip[i*3+2] = b[i]
+    """
     #send the data to the blinkstick
     stick.set_led_data(0, newstrip)
 
@@ -143,6 +208,8 @@ def update():
         _update_pi()
     elif config.DEVICE == 'blinkstick':
         _update_blinkstick()
+    elif config.DEVICE == 'launchpad':
+        _update_launchpad()
     else:
         raise ValueError('Invalid device selected')
 
