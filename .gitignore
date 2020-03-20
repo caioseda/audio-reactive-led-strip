@@ -47,3 +47,4 @@ Temporary Items
 .apdisk
 *.pyc
 *.pdf
+/arduino/ws2812_controller_esp8266/ws2812_controller_esp8266.ino
