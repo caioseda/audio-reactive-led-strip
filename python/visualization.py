@@ -17,12 +17,15 @@ _fps = dsp.ExpFilter(val=config.FPS, alpha_decay=0.2, alpha_rise=0.2)
 
 def frames_per_second():
     """Return the estimated frames per second
+
     Returns the current estimate for frames-per-second (FPS).
     FPS is estimated by measured the amount of time that has elapsed since
     this function was previously called. The FPS estimate is low-pass filtered
     to reduce noise.
+
     This function is intended to be called one time for every iteration of
     the program's main loop.
+
     Returns
     -------
     fps : float
@@ -61,12 +64,15 @@ def _normalized_linspace(size):
 
 def interpolate(y, new_length):
     """Intelligently resizes the array by linearly interpolating the values
+
     Parameters
     ----------
     y : np.array
         Array that should be resized
+
     new_length : int
         The length of the new interpolated array
+
     Returns
     -------
     z : np.array
@@ -115,6 +121,7 @@ def visualize_scroll(y):
     p[1, 0] = g
     p[2, 0] = b
     # Update the LED strip
+    # print(p.shape)
     return np.concatenate((p[:, ::-1], p), axis=1)
 
 
@@ -145,6 +152,7 @@ def visualize_energy(y):
     p[1, :] = gaussian_filter1d(p[1, :], sigma=4.0)
     p[2, :] = gaussian_filter1d(p[2, :], sigma=4.0)
     # Set the new pixel value
+    # print(p.shape)
     return np.concatenate((p[:, ::-1], p), axis=1)
 
 
@@ -167,8 +175,14 @@ def visualize_spectrum(y):
     g = np.concatenate((g[::-1], g))
     b = np.concatenate((b[::-1], b))
     output = np.array([r, g,b]) * 255
+    # print(output.shape)
     return output
 
+color_array = np.full((3,118),255)
+def visualize_static(y):
+    global color_array
+    output = color_array
+    return output
 
 fft_plot_filter = dsp.ExpFilter(np.tile(1e-1, config.N_FFT_BINS),
                          alpha_decay=0.5, alpha_rise=0.99)
@@ -245,6 +259,7 @@ y_roll = np.random.rand(config.N_ROLLING_HISTORY, samples_per_frame) / 1e16
 visualization_effect = visualize_spectrum
 """Visualization effect to display on the LED strip"""
 
+
 if __name__ == '__main__':
     if config.USE_GUI:
         import pyqtgraph as pg
@@ -314,25 +329,37 @@ if __name__ == '__main__':
             energy_label.setText('Energy', color=active_color)
             scroll_label.setText('Scroll', color=inactive_color)
             spectrum_label.setText('Spectrum', color=inactive_color)
+            static_label.setText('Static', color=inactive_color)
         def scroll_click(x):
             global visualization_effect
             visualization_effect = visualize_scroll
             energy_label.setText('Energy', color=inactive_color)
             scroll_label.setText('Scroll', color=active_color)
             spectrum_label.setText('Spectrum', color=inactive_color)
+            static_label.setText('Static', color=inactive_color)
         def spectrum_click(x):
             global visualization_effect
             visualization_effect = visualize_spectrum
             energy_label.setText('Energy', color=inactive_color)
             scroll_label.setText('Scroll', color=inactive_color)
             spectrum_label.setText('Spectrum', color=active_color)
+            static_label.setText('Static', color=inactive_color)
+        def static_click(x):
+            global visualization_effect
+            visualization_effect = visualize_static
+            energy_label.setText('Energy', color=inactive_color)
+            scroll_label.setText('Scroll', color=inactive_color)
+            spectrum_label.setText('Spectrum', color=inactive_color)
+            static_label.setText('Static', color=active_color)
         # Create effect "buttons" (labels with click event)
         energy_label = pg.LabelItem('Energy')
         scroll_label = pg.LabelItem('Scroll')
         spectrum_label = pg.LabelItem('Spectrum')
+        static_label = pg.LabelItem('Static')
         energy_label.mousePressEvent = energy_click
         scroll_label.mousePressEvent = scroll_click
         spectrum_label.mousePressEvent = spectrum_click
+        static_label.mousePressEvent = static_click
         energy_click(0)
         # Layout
         layout.nextRow()
@@ -340,10 +367,83 @@ if __name__ == '__main__':
         layout.nextRow()
         layout.addItem(freq_slider, colspan=3)
         layout.nextRow()
+
+        R_label = pg.LabelItem('')
+        def freq_slider_changeR(tick):
+            value = freq_sliderR.tickValue(0)
+            R_label.setText(f"valor Red: {value:.2f}",color=inactive_color)
+            # print(value)
+            config.R_MULTIPLIER = value
+        
+        G_label = pg.LabelItem('')
+        def freq_slider_changeG(tick):
+            value = freq_sliderG.tickValue(0)
+            G_label.setText(f"valor Green: {value:.2f}",color=inactive_color)
+            # print(value)
+            config.G_MULTIPLIER = value
+        
+        B_label = pg.LabelItem('')
+        def freq_slider_changeB(tick):
+            value = freq_sliderB.tickValue(0)
+            B_label.setText(f"valor Blue: {value:.2f}",color=inactive_color)
+            # print(value)
+            config.B_MULTIPLIER = value
+
+        # def freq_slider_changeG(tick):
+        #     value = freq_slider.tickValue(0)**2.0 * (config.MIC_RATE / 2.0)
+        #     freq_label.setText(t)
+        #     config.G_MULTIPLIER = value
+
+        # def freq_slider_changeB(tick):
+        #     value = freq_slider.tickValue(0)**2.0 * (config.MIC_RATE / 2.0)
+        #     freq_label.setText(t)
+        #     config.B_MULTIPLIER = value
+
+        R_label.setText(f"valor Red:{config.R_MULTIPLIER:.2f} ",color=inactive_color)
+        freq_sliderR = pg.TickSliderItem(orientation='top', allowAdd=False)
+        freq_sliderR.addTick(1)
+        freq_sliderR.tickMoveFinished = freq_slider_changeR
+
+        G_label.setText(f"valor Green:{config.G_MULTIPLIER:.2f} ",color=inactive_color)
+        freq_sliderG = pg.TickSliderItem(orientation='top', allowAdd=False)
+        freq_sliderG.addTick(1)
+        freq_sliderG.tickMoveFinished = freq_slider_changeG
+        
+        B_label.setText(f"valor Blue:{config.B_MULTIPLIER:.2f} ",color=inactive_color)
+        freq_sliderB = pg.TickSliderItem(orientation='top', allowAdd=False)
+        freq_sliderB.addTick(1)
+        freq_sliderB.tickMoveFinished = freq_slider_changeB
+        
+        def freq_slider_change(tick):
+            global color_array
+            gradient =  but.getLookupTable(118) #returns array in (5,3) shape
+            gradient = gradient.transpose() #reshape to (3,5)
+            gradient =  np.flip(gradient,axis=1) # invert ther order inside each sub-array(side of the gradient) without invert the outside(r,g,b)
+            print(gradient) 
+            color_array = gradient
+
+        but = pg.GradientEditorItem()
+        but.tickMoveFinished = freq_slider_change
+
+        check = QtGui.QCheckBox("loop gradient")
+        # check.setText()
+
+        layout.nextRow()
+        layout.addItem(R_label)
+        layout.addItem(G_label)
+        layout.addItem(B_label)
+        layout.nextRow()
+        layout.addItem(freq_sliderR)
+        layout.addItem(freq_sliderG)
+        layout.addItem(freq_sliderB)
+        layout.nextRow()
         layout.addItem(energy_label)
         layout.addItem(scroll_label)
         layout.addItem(spectrum_label)
-    # Initialize LEDs
+        layout.nextRow()
+        layout.addItem(static_label)
+        layout.addItem(but)
+    # Initialize LED
     led.update()
     # Start listening to live audio stream
     microphone.start_stream(microphone_update)
