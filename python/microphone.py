@@ -2,9 +2,11 @@ import time
 import numpy as np
 import pyaudio
 import config
-
+import visualization
 
 def start_stream(callback):
+    print("stream iniciada")
+    effect = visualization.effect
     p = pyaudio.PyAudio()
     frames_per_buffer = int(config.MIC_RATE / config.FPS)
     stream = p.open(format=pyaudio.paInt16,
@@ -14,7 +16,11 @@ def start_stream(callback):
                     frames_per_buffer=frames_per_buffer)
     overflows = 0
     prev_ovf_time = time.time()
-    while True:
+    visualization_need = True
+    while visualization_need:
+        # print(effect)
+        if effect not in ["visualize_energy", "visualize_scroll", "visualize_spectrum"]:
+            visualization_need = False
         try:
             y = np.fromstring(stream.read(frames_per_buffer, exception_on_overflow=False), dtype=np.int16)
             y = y.astype(np.float32)
@@ -28,3 +34,4 @@ def start_stream(callback):
     stream.stop_stream()
     stream.close()
     p.terminate()
+    print("stream fechada")
