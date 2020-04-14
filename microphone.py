@@ -6,7 +6,6 @@ import visualization
 
 def start_stream(callback):
     print("stream iniciada")
-    effect = visualization.effect
     p = pyaudio.PyAudio()
     frames_per_buffer = int(config.MIC_RATE / config.FPS)
     stream = p.open(format=pyaudio.paInt16,
@@ -17,15 +16,14 @@ def start_stream(callback):
     overflows = 0
     prev_ovf_time = time.time()
     visualization_need = True
+    
+    # effect = visualization.visualization_effect.__name__
     while visualization_need:
-        # print(effect)
-        if effect not in ["visualize_energy", "visualize_scroll", "visualize_spectrum"]:
-            visualization_need = False
         try:
             y = np.fromstring(stream.read(frames_per_buffer, exception_on_overflow=False), dtype=np.int16)
             y = y.astype(np.float32)
             stream.read(stream.get_read_available(), exception_on_overflow=False)
-            callback(y)
+            visualization_need = callback(y)
         except IOError:
             overflows += 1
             if time.time() > prev_ovf_time + 1:
