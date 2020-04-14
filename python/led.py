@@ -68,6 +68,11 @@ def _update_esp8266():
     idx = [i for i in idx if not np.array_equal(p[:, i], _prev_pixels[:, i])]
     n_packets = len(idx) // MAX_PIXELS_PER_PACKET + 1
     idx = np.array_split(idx, n_packets)
+
+    p[0] = p[0][:] * config.R_MULTIPLIER
+    p[1] = p[1][:] * config.G_MULTIPLIER
+    p[2] = p[2][:] * config.B_MULTIPLIER
+    p = p.astype(int)
     for packet_indices in idx:
         m = '' if _is_python_2 else []
         for i in packet_indices:
@@ -75,9 +80,9 @@ def _update_esp8266():
                 m += chr(i) + chr(p[0][i]) + chr(p[1][i]) + chr(p[2][i])
             else:
                 m.append(i)  # Index of pixel to change
-                m.append(p[0][i])  # Pixel red value
-                m.append(p[1][i])  # Pixel green value
-                m.append(p[2][i])  # Pixel blue value
+                m.append(p[0][i]) # Pixel red value
+                m.append(p[1][i]) # Pixel green value
+                m.append(p[2][i]) # Pixel blue value
         m = m if _is_python_2 else bytes(m)
         _sock.sendto(m, (config.UDP_IP, config.UDP_PORT))
     _prev_pixels = np.copy(p)
@@ -95,11 +100,12 @@ def _update_pi():
     # Optional gamma correction
     p = _gamma[pixels] if config.SOFTWARE_GAMMA_CORRECTION else np.copy(pixels)
     # Encode 24-bit LED values in 32 bit integers
-    r = np.left_shift(p[0][:].astype(int), 8)
-    g = np.left_shift(p[1][:].astype(int), 16)
-    b = p[2][:].astype(int)
+    r = np.left_shift(p[0][:].astype(int), 8)   
+    g = np.left_shift(p[1][:].astype(int), 16)  
+    b = p[2][:].astype(int)                     
     rgb = np.bitwise_or(np.bitwise_or(r, g), b)
     # Update the pixels
+    print(config.R_MULTIPLIER,config.G_MULTIPLIER,config.B_MULTIPLIER)
     for i in range(config.N_PIXELS):
         # Ignore pixels if they haven't changed (saves bandwidth)
         if np.array_equal(p[:, i], _prev_pixels[:, i]):
@@ -153,12 +159,17 @@ def update():
 if __name__ == '__main__':
     import time
     # Turn all pixels off
-    pixels *= 0
-    pixels[0, 0] = 255  # Set 1st pixel red
-    pixels[1, 1] = 255  # Set 2nd pixel green
-    pixels[2, 2] = 255  # Set 3rd pixel blue
-    print('Starting LED strand test')
-    while True:
-        pixels = np.roll(pixels, 1, axis=1)
+    mode = 1
+    if mode == 1:
+        pixels *= 0
+        pixels[0, 0] = 255  # Set 1st pixel red
+        pixels[1, 1] = 255  # Set 2nd pixel green
+        pixels[2, 2] = 255  # Set 3rd pixel blue
+        print('Starting LED strand test')
+        while True:
+            pixels = np.roll(pixels, 1, axis=1)
+            update()
+            time.sleep(.01)
+    if mode == 2:
+        pixels = np.full((3,118),255)
         update()
-        time.sleep(.1)
