@@ -437,6 +437,8 @@ if __name__ == '__main__':
             led.pixels = output
             led.update()
             # print(getEffect())
+        #limit GUI to 50fps
+        time.sleep(0.02)
         app.processEvents()
         # print(visualization_effect.__name__ + " sendo usado.")
     # Start listening to live audio stream
