@@ -387,12 +387,8 @@ if __name__ == '__main__':
         layout.nextRow()
         layout.addItem(freq_slider, colspan=3)
         layout.nextRow()
-        
-        def updateColor(tick,color):
-            tick = but.getTick(tick)
-            tick.color = color
-            tick.update()
-            
+
+        def updateGradient():
             global color_array
             gradient =  but.getLookupTable(118) #returns array in (5,3) shape
             gradient = gradient.transpose() #reshape to (3,5)
@@ -403,8 +399,8 @@ if __name__ == '__main__':
                 static_update()
 
         but = pg.GradientEditorItem()
-        but.setTickColor = updateColor
-
+        but.sigGradientChanged.connect(updateGradient)
+        
         def dynamic_click():
             dynamic_label.setText('Energy', color='#fcba03')
             
@@ -422,7 +418,6 @@ if __name__ == '__main__':
         layout.addItem(but)
         # layout.addItem(buttomMic)
     # Initialize LED
-    print(visualization_effect.__name__)
     led.update()
     energy_click(0)
 
