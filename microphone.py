@@ -2,16 +2,25 @@ import time
 import numpy as np
 import pyaudio
 import config
-import visualization
+
+p = pyaudio.PyAudio()
+info = p.get_host_api_info_by_index(0)
+numdevices = info.get('deviceCount')
+stereoId = p.get_default_input_device_info().get("index")
+for i in range(0, numdevices):
+    if (p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
+        name = p.get_device_info_by_host_api_device_index(0, i).get('name')
+        if name.split(" ")[0] == "Stereo":
+            stereoId = p.get_device_info_by_host_api_device_index(0, i).get('index')
 
 def start_stream(callback):
     print("stream iniciada")
-    p = pyaudio.PyAudio()
     frames_per_buffer = int(config.MIC_RATE / config.FPS)
     stream = p.open(format=pyaudio.paInt16,
                     channels=1,
                     rate=config.MIC_RATE,
                     input=True,
+                    input_device_index = stereoId ,
                     frames_per_buffer=frames_per_buffer)
     overflows = 0
     prev_ovf_time = time.time()
