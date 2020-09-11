@@ -159,17 +159,46 @@ def update():
 if __name__ == '__main__':
     import time
     # Turn all pixels off
-    mode = 1
-    if mode == 1:
+    mode = 3
+    if mode == 2:
         pixels *= 0
         pixels[0, 0] = 255  # Set 1st pixel red
         pixels[1, 1] = 255  # Set 2nd pixel green
         pixels[2, 2] = 255  # Set 3rd pixel blue
         print('Starting LED strand test')
-        while True:
+        # while True:
+        if True:
             pixels = np.roll(pixels, 1, axis=1)
+            print(pixels)
             update()
             time.sleep(.01)
     if mode == 2:
         pixels = np.full((3,118),255)
         update()
+    
+    if mode == 3:
+        print('Starting LED strand test')
+        rainbow_indice = [0,0,0]
+        while True:
+        # if True:
+            if rainbow_indice[0] == 0 and rainbow_indice[1] == 0 and rainbow_indice[2] < 255:
+                rainbow_indice[2] += 1
+            if rainbow_indice[0] == 0 and rainbow_indice[1] < 255 and rainbow_indice[2] == 255:
+                rainbow_indice[1] += 1
+            if rainbow_indice[0] == 0 and rainbow_indice[1] == 255 and rainbow_indice[2] > 0:
+                rainbow_indice[2] -= 1
+            if rainbow_indice[0] < 255 and rainbow_indice[1] == 255 and rainbow_indice[2] == 0:
+                rainbow_indice[0] += 1
+            if rainbow_indice[0] == 255 and rainbow_indice[1] > 0 and rainbow_indice[2] == 0:
+                rainbow_indice[1] -= 1
+            if rainbow_indice[0] == 255 and rainbow_indice[1] == 0 and rainbow_indice[2] < 255:
+                rainbow_indice[2] += 1
+            if rainbow_indice[0] > 0 and rainbow_indice[1] == 0 and rainbow_indice[2] == 255:
+                rainbow_indice[0] -= 1
+            print("rainbow",rainbow_indice,np.array(rainbow_indice).shape)
+            output = (np.tile(rainbow_indice,(119,1))).astype(int)
+            print("output",output, output.shape)
+            pixels = output.T 
+            # time.sleep(0.0)
+            update()
+        

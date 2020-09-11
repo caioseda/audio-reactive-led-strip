@@ -102,7 +102,7 @@ gain = dsp.ExpFilter(np.tile(0.01, config.N_FFT_BINS),
                      alpha_decay=0.001, alpha_rise=0.99)
 
 
-def visualize_scroll(y):
+def visualize_scroll(y,**kwargs):
     """Effect that originates in the center and scrolls outwards"""
     global p
     y = y**2.0
@@ -125,7 +125,7 @@ def visualize_scroll(y):
     return np.concatenate((p[:, ::-1], p), axis=1)
 
 
-def visualize_energy(y):
+def visualize_energy(y,**kwargs):
     """Effect that expands from the center with increasing sound energy"""
     global p
     y = np.copy(y)
@@ -159,7 +159,7 @@ def visualize_energy(y):
 _prev_spectrum = np.tile(0.01, config.N_PIXELS // 2)
 
 
-def visualize_spectrum(y):
+def visualize_spectrum(y,**kwargs):
     """Effect that maps the Mel filterbank frequencies onto the LED strip"""
     global _prev_spectrum
     y = np.copy(interpolate(y, config.N_PIXELS // 2))
@@ -179,10 +179,33 @@ def visualize_spectrum(y):
     return output
 
 color_array = np.full((3,118),255)
-def visualize_static():
+def visualize_static(**kwargs):
     global color_array
     output = color_array
     return output
+
+rainbow_indice = [0,0,0]
+index_rainbow = 0
+def visualize_rainbow(**kwargs):
+    global rainbow_indice, index_rainbow
+    if rainbow_indice[0] == 0 and rainbow_indice[1] == 0 and rainbow_indice[2] < 255:
+        rainbow_indice[2] += 1
+    if rainbow_indice[0] == 0 and rainbow_indice[1] < 255 and rainbow_indice[2] == 255:
+        rainbow_indice[1] += 1
+    if rainbow_indice[0] == 0 and rainbow_indice[1] == 255 and rainbow_indice[2] > 0:
+        rainbow_indice[2] -= 1
+    if rainbow_indice[0] < 255 and rainbow_indice[1] == 255 and rainbow_indice[2] == 0:
+        rainbow_indice[0] += 1
+    if rainbow_indice[0] == 255 and rainbow_indice[1] > 0 and rainbow_indice[2] == 0:
+        rainbow_indice[1] -= 1
+    if rainbow_indice[0] == 255 and rainbow_indice[1] == 0 and rainbow_indice[2] < 255:
+        rainbow_indice[2] += 1
+    if rainbow_indice[0] > 0 and rainbow_indice[1] == 0 and rainbow_indice[2] == 255:
+        rainbow_indice[0] -= 1
+    output = (np.tile(rainbow_indice,(119,1)) * 0.1).astype(int)
+    
+    return output.T
+
 
 fft_plot_filter = dsp.ExpFilter(np.tile(1e-1, config.N_FFT_BINS),
                          alpha_decay=0.5, alpha_rise=0.99)
@@ -195,6 +218,10 @@ volume = dsp.ExpFilter(config.MIN_VOLUME_THRESHOLD,
 fft_window = np.hamming(int(config.MIC_RATE / config.FPS) * config.N_ROLLING_HISTORY)
 prev_fps_update = time.time()
 
+def static_update():
+    output = visualize_static()
+    led.pixels = output
+    led.update()
 
 def microphone_update(audio_samples):
     global y_roll, prev_rms, prev_exp, prev_fps_update
@@ -240,8 +267,8 @@ def microphone_update(audio_samples):
             r_curve.setData(y=led.pixels[0])
             g_curve.setData(y=led.pixels[1])
             b_curve.setData(y=led.pixels[2])
-    # if config.USE_GUI:
-    #     app.processEvents()
+    if config.USE_GUI:
+        app.processEvents()
     
     if config.DISPLAY_FPS:
         fps = frames_per_second()
@@ -249,6 +276,12 @@ def microphone_update(audio_samples):
             prev_fps_update = time.time()
             print('FPS {:.0f} / {:.0f}'.format(fps, config.FPS))
 
+    effect = visualization_effect.__name__
+    visualization_need = True
+    if effect not in ["visualize_energy", "visualize_scroll", "visualize_spectrum"]:
+        visualization_need = False
+
+    return visualization_need
 
 # Number of audio samples to read every time frame
 samples_per_frame = int(config.MIC_RATE / config.FPS)
@@ -256,9 +289,7 @@ samples_per_frame = int(config.MIC_RATE / config.FPS)
 # Array containing the rolling audio sample window
 y_roll = np.random.rand(config.N_ROLLING_HISTORY, samples_per_frame) / 1e16
 
-visualization_effect = visualize_static
-effect = "static"
-# mic_need = False
+visualization_effect = visualize_energy
 """Visualization effect to display on the LED strip"""
 
 
@@ -270,12 +301,20 @@ if __name__ == '__main__':
         app = QtGui.QApplication([])
         view = pg.GraphicsView()
         layout = pg.GraphicsLayout(border=(100,100,100))
+
+    
+        # w = QtGui.QWidget()
+        # Wlayout = QtGui.QGridLayout()
+        # w.setLayout(Wlayout)
+        # # cb = QtGui.QComboBox(parent=w)
+        # cb = pg.ComboBox()
+        # Wlayout.addWidget(cb)
+        # w.show()
+        
         view.setCentralItem(layout)
         view.show()
         view.setWindowTitle('Visualization')
         view.resize(800,600)
-
-       
         # Mel filterbank plot
         fft_plot = layout.addPlot(title='Filterbank Output', colspan=3)
         fft_plot.setRange(yRange=[-0.1, 1.2])
@@ -324,56 +363,68 @@ if __name__ == '__main__':
         freq_label.setText('Frequency range: {} - {} Hz'.format(
             config.MIN_FREQUENCY,
             config.MAX_FREQUENCY))
+        
         # Effect selection
         active_color = '#16dbeb'
         inactive_color = '#FFFFFF'
         def energy_click(x):
-            global visualization_effect, effect
+            global visualization_effect
             visualization_effect = visualize_energy
             energy_label.setText('Energy', color=active_color)
             scroll_label.setText('Scroll', color=inactive_color)
             spectrum_label.setText('Spectrum', color=inactive_color)
-            effect = "energy"
-            # mic_need= True
+            static_label.setText('Static', color=inactive_color)
+            # microphone.start_stream(microphone_update)
+
         def scroll_click(x):
-            global visualization_effect, effect
+            global visualization_effect
             visualization_effect = visualize_scroll
             energy_label.setText('Energy', color=inactive_color)
             scroll_label.setText('Scroll', color=active_color)
             spectrum_label.setText('Spectrum', color=inactive_color)
             static_label.setText('Static', color=inactive_color)
-            effect = "scroll"
-            # mic_need= True
+            # microphone.start_stream(microphone_update)
+
         def spectrum_click(x):
-            global visualization_effect, effect
+            global visualization_effect
             visualization_effect = visualize_spectrum
             energy_label.setText('Energy', color=inactive_color)
             scroll_label.setText('Scroll', color=inactive_color)
             spectrum_label.setText('Spectrum', color=active_color)
             static_label.setText('Static', color=inactive_color)
-            effect = "spectrum"
-            # mic_need= True
+            # microphone.start_stream(microphone_update)
+
         def static_click(x):
-            global visualization_effect, effect
+            global visualization_effect
             visualization_effect = visualize_static
             energy_label.setText('Energy', color=inactive_color)
             scroll_label.setText('Scroll', color=inactive_color)
             spectrum_label.setText('Spectrum', color=inactive_color)
             static_label.setText('Static', color=active_color)
-            effect = "static"
-            # mic_need= False
-
         
+        def rainbow_click(x):
+            global visualization_effect
+            visualization_effect = visualize_rainbow
+            energy_label.setText('Energy', color=inactive_color)
+            scroll_label.setText('Scroll', color=inactive_color)
+            spectrum_label.setText('Spectrum', color=inactive_color)
+            static_label.setText('Static', color=inactive_color)
+
+
+
         # Create effect "buttons" (labels with click event)
         energy_label = pg.LabelItem('Energy')
         scroll_label = pg.LabelItem('Scroll')
         spectrum_label = pg.LabelItem('Spectrum')
         static_label = pg.LabelItem('Static')
+        rainbow_label = pg.LabelItem('Rainbow')
         energy_label.mousePressEvent = energy_click
         scroll_label.mousePressEvent = scroll_click
         spectrum_label.mousePressEvent = spectrum_click
         static_label.mousePressEvent = static_click
+        rainbow_label.mousePressEvent = rainbow_click
         
+
         # Layout
         layout.nextRow()
         layout.addItem(freq_label, colspan=3)
@@ -381,53 +432,19 @@ if __name__ == '__main__':
         layout.addItem(freq_slider, colspan=3)
         layout.nextRow()
 
-        # R_label = pg.LabelItem('')
-        # def freq_slider_changeR(tick):
-        #     value = freq_sliderR.tickValue(0)
-        #     R_label.setText(f"valor Red: {value:.2f}",color=inactive_color)
-        #     # print(value)
-        #     config.R_MULTIPLIER = value
-        
-        # G_label = pg.LabelItem('')
-        # def freq_slider_changeG(tick):
-        #     value = freq_sliderG.tickValue(0)
-        #     G_label.setText(f"valor Green: {value:.2f}",color=inactive_color)
-        #     # print(value)
-        #     config.G_MULTIPLIER = value
-        
-        # B_label = pg.LabelItem('')
-        # def freq_slider_changeB(tick):
-        #     value = freq_sliderB.tickValue(0)
-        #     B_label.setText(f"valor Blue: {value:.2f}",color=inactive_color)
-        #     # print(value)
-        #     config.B_MULTIPLIER = value
-
-        # R_label.setText(f"valor Red:{config.R_MULTIPLIER:.2f} ",color=inactive_color)
-        # freq_sliderR = pg.TickSliderItem(orientation='top', allowAdd=False)
-        # freq_sliderR.addTick(1)
-        # freq_sliderR.tickMoveFinished = freq_slider_changeR
-
-        # G_label.setText(f"valor Green:{config.G_MULTIPLIER:.2f} ",color=inactive_color)
-        # freq_sliderG = pg.TickSliderItem(orientation='top', allowAdd=False)
-        # freq_sliderG.addTick(1)
-        # freq_sliderG.tickMoveFinished = freq_slider_changeG
-        
-        # B_label.setText(f"valor Blue:{config.B_MULTIPLIER:.2f} ",color=inactive_color)
-        # freq_sliderB = pg.TickSliderItem(orientation='top', allowAdd=False)
-        # freq_sliderB.addTick(1)
-        # freq_sliderB.tickMoveFinished = freq_slider_changeB
-        
-        def freq_slider_change(tick):
+        def updateGradient():
             global color_array
             gradient =  but.getLookupTable(118) #returns array in (5,3) shape
             gradient = gradient.transpose() #reshape to (3,5)
             gradient =  np.flip(gradient,axis=1) # invert ther order inside each sub-array(side of the gradient) without invert the outside(r,g,b)
-            print(gradient) 
+            # print(gradient) 
             color_array = gradient
+            if visualization_effect.__name__ == "visualize_static":
+                static_update()
 
         but = pg.GradientEditorItem()
-        but.tickMoveFinished = freq_slider_change
-
+        but.sigGradientChanged.connect(updateGradient)
+        
         def dynamic_click():
             dynamic_label.setText('Energy', color='#fcba03')
             
@@ -436,38 +453,35 @@ if __name__ == '__main__':
         dynamic_label.mousePressEvent = dynamic_click
 
         check = QtGui.QCheckBox("loop gradient")
-        # check.setText()
-
-        # layout.nextRow()
-        # layout.addItem(R_label)
-        # layout.addItem(G_label)
-        # layout.addItem(B_label)
-        # layout.nextRow()
-        # layout.addItem(freq_sliderR)
-        # layout.addItem(freq_sliderG)
-        # layout.addItem(freq_sliderB)
         layout.nextRow()
         layout.addItem(energy_label)
         layout.addItem(scroll_label)
         layout.addItem(spectrum_label)
         layout.nextRow()
         layout.addItem(static_label)
-        layout.addItem(but)
+        layout.addItem(rainbow_label)
+        layout.nextRow()
+        # layout.addItem(teste)
         # layout.addItem(buttomMic)
     # Initialize LED
-    print(visualization_effect.__name__)
     led.update()
-    static_click(0)
+    energy_click(0)
+
+
     while True:
+        microphone.effect = visualization_effect.__name__
+        print(visualization_effect.__name__)
         if visualization_effect.__name__ in ["visualize_energy", "visualize_scroll", "visualize_spectrum"]:
-            print("1")
             microphone.start_stream(microphone_update)
-        elif visualization_effect.__name__ == "visualize_static":
-            print("2")
+            print("")
+        elif visualization_effect.__name__ in ["visualize_static","visualize_rainbow"]:
             output = visualization_effect()
             led.pixels = output
             led.update()
+            # print(getEffect())
+        #limit GUI to 50fps
+        time.sleep(0.02)
         app.processEvents()
-    #     print(visualization_effect.__name__ + " sendo usado.")
+        # print(visualization_effect.__name__ + " sendo usado.")
     # Start listening to live audio stream
     # microphone.start_stream(microphone_update)

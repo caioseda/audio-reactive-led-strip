@@ -42,6 +42,8 @@ if DEVICE == 'blinkstick':
     SOFTWARE_GAMMA_CORRECTION = True
     """Set to True because blinkstick doesn't use hardware dithering"""
 
+MIC=True
+
 R_MULTIPLIER = 1
 G_MULTIPLIER = 1
 B_MULTIPLIER = 1
